@@ -2,6 +2,12 @@
 
 Lightweight Live Reload Tool for Running Anything.
 
+# Install
+
+```shell
+cargo install --path .
+```
+
 # How to use
 
 ## Create `reloadx.yaml` file
@@ -9,10 +15,14 @@ Lightweight Live Reload Tool for Running Anything.
 ```yaml
 env:
   PORT: "8080"
-  DEBUG: "true"
 commands:
   - "go run main.go"
 watch_dir: "./"
+ignore:
+  - ".git"
+  - "target"
+  - "node_modules"
+  - "*.log"
 ```
 
 ## Run

@@ -1,6 +1,10 @@
 env:
   PORT: "8080"
-  DEBUG: "true"
 commands:
   - "go run main.go"
 watch_dir: "./"
+ignore:
+  - ".git"
+  - "target"
+  - "node_modules"
+  - "*.log"
