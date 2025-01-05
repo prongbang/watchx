@@ -2,12 +2,6 @@
 
 Lightweight Live Reload Tool for Running Anything.
 
-# Install
-
-```shell
-cargo install --path .
-```
-
 # How to use
 
 ## Create `reloadx.yaml` file
@@ -29,4 +23,28 @@ ignore:
 
 ```shell
 reloadx
+```
+
+# Install
+
+### Install with Homebrew
+
+```shell
+brew update
+brew tap prongbang/homebrew-formulae
+brew install reloadx
+```
+
+or
+
+### Install with Rust
+
+```shell
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+#### With Cargo Install
+
+```shell
+cargo install reloadx --git https://github.com/prongbang/reloadx.git
 ```
