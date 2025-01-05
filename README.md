@@ -27,16 +27,6 @@ reloadx
 
 # Install
 
-### Install with Homebrew
-
-```shell
-brew update
-brew tap prongbang/homebrew-formulae
-brew install reloadx
-```
-
-or
-
 ### Install with Rust
 
 ```shell
