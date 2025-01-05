@@ -1,0 +1,6 @@
+env:
+  PORT: "8080"
+  DEBUG: "true"
+commands:
+  - "go run main.go"
+watch_dir: "./"
