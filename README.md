@@ -21,8 +21,16 @@ ignore:
 
 ## Run
 
+- Uses default reloadx.yaml
+
 ```shell
-reloadx
+reloadx run
+```
+
+- Uses custom config file
+
+```shell
+reloadx run -c custom.yaml
 ```
 
 # Install
