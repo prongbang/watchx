@@ -20,7 +20,7 @@ pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool
 }
 
 pub fn run(config_path: &str) -> Result<()> {
-    println!("Starting ReloadX with config: {}", config_path);
+    println!("Starting WatchX with config: {}", config_path);
     
     // Load configuration
     let config = config::read_config(config_path);
@@ -66,7 +66,7 @@ pub fn run(config_path: &str) -> Result<()> {
                 let mut is_restarting_flag = is_restarting.lock().unwrap();
 
                 if !*is_restarting_flag && now.duration_since(*last_changed_time) > Duration::from_secs(2) {
-                    println!("🔄 Changes detected in files: {:?}", event.paths);
+                    println!("🔥 Changes detected in files: {:?}", event.paths);
                     *is_restarting_flag = true;
                     *last_changed_time = now;
 

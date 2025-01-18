@@ -19,7 +19,7 @@
 
 # Cross-platform build configuration
 VERSION ?= 0.1.0
-BINARY_NAME = reloadx
+BINARY_NAME = watchx
 
 # Toolchain targets
 toolchain:

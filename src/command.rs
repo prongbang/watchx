@@ -14,7 +14,7 @@ pub enum Commands {
     /// Run the application with hot reloading
     Run {
         /// Optional path to config file
-        #[arg(short, long, default_value = "reloadx.yaml")]
+        #[arg(short, long, default_value = "watchx.yaml")]
         config: String,
     },
 }
