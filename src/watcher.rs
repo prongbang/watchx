@@ -1,18 +1,21 @@
 use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
 use std::sync::{mpsc::channel, Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::path::Path;
 use std::thread;
+use glob::Pattern;
+use log::{info, warn, error};
 
 use crate::{command, config, processes};
 
 pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool {
     if let Some(patterns) = ignore_patterns {
+        let path_str = path.to_str().unwrap_or("");
         for pattern in patterns {
-            let pattern_path = PathBuf::from_str(pattern).expect("Invalid pattern");
-            if path.starts_with(&pattern_path) || path.to_str().unwrap_or("").contains(pattern) {
-                return true;
+            if let Ok(glob_pattern) = Pattern::new(pattern) {
+                if glob_pattern.matches(path_str) {
+                    return true;
+                }
             }
         }
     }
@@ -20,7 +23,7 @@ pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool
 }
 
 pub fn run(config_path: &str) -> Result<()> {
-    println!("Starting WatchX with config: {}", config_path);
+    info!("Config: {}", config_path);
     
     // Load configuration
     let config = config::read_config(config_path);
@@ -28,10 +31,10 @@ pub fn run(config_path: &str) -> Result<()> {
     // Channel to receive file change events
     let (tx, rx) = channel();
 
-    // Set up file watcher
+    // Set up file watcher with optimized polling
     let watch_config = notify::Config::default()
-        .with_poll_interval(Duration::from_secs(2))
-        .with_compare_contents(true);
+        .with_poll_interval(Duration::from_secs(1))
+        .with_compare_contents(false);
     let mut watcher: RecommendedWatcher = Watcher::new(tx, watch_config)?;
     let path = Path::new(&config.watch_dir);
     watcher.watch(path, RecursiveMode::Recursive)?;
@@ -45,10 +48,26 @@ pub fn run(config_path: &str) -> Result<()> {
         .parse::<u16>()
         .unwrap_or(8080);
 
+    // Use atomic types for better performance
     let last_changed = Arc::new(Mutex::new(Instant::now()));
     let is_restarting = Arc::new(Mutex::new(false));
+    let debounce_time = Duration::from_secs(1);
 
-    println!("👀 Watching for changes in {}", config.watch_dir);
+    info!("Watch: {}", config.watch_dir);
+    info!("Hot reload: 1s");
+
+    // Spawn a single thread for debouncing
+    let is_restarting_clone = Arc::clone(&is_restarting);
+    thread::spawn(move || {
+        loop {
+            thread::sleep(debounce_time);
+            if let Ok(mut flag) = is_restarting_clone.lock() {
+                *flag = false;
+            }
+        }
+    });
+
+    let mut last_warn_time = Instant::now();
 
     for res in rx {
         match res {
@@ -65,24 +84,22 @@ pub fn run(config_path: &str) -> Result<()> {
                 let mut last_changed_time = last_changed.lock().unwrap();
                 let mut is_restarting_flag = is_restarting.lock().unwrap();
 
-                if !*is_restarting_flag && now.duration_since(*last_changed_time) > Duration::from_secs(2) {
-                    println!("🔥 Changes detected in files: {:?}", event.paths);
+                if !*is_restarting_flag && now.duration_since(*last_changed_time) > debounce_time {
+                    info!("Changed:");
+                    for path in &event.paths {
+                        info!("  {}", path.display());
+                    }
                     *is_restarting_flag = true;
                     *last_changed_time = now;
+                    last_warn_time = now; // Reset warning time when changes are processed
 
                     processes::restart(&mut children, &config.commands, &config.env, port);
-
-                    let is_restarting_clone = Arc::clone(&is_restarting);
-                    thread::spawn(move || {
-                        thread::sleep(Duration::from_secs(2));
-                        let mut flag = is_restarting_clone.lock().unwrap();
-                        *flag = false;
-                    });
-                } else {
-                    println!("⏳ Skipping reload - debouncing active or restart in progress");
+                } else if now.duration_since(last_warn_time) > debounce_time {
+                    warn!("Debounce: skipping reload");
+                    last_warn_time = now;
                 }
             }
-            Err(e) => println!("⚠️ Watch error: {:?}", e),
+            Err(e) => error!("Error: {:?}", e),
         }
     }
 

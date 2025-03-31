@@ -2,6 +2,7 @@ use std::process::{Child, Command};
 use std::thread;
 use std::time::Duration;
 use std::collections::HashMap;
+use log::{warn, info};
 
 use crate::command;
 
@@ -38,12 +39,12 @@ pub fn restart(
     
     // Ensure port is available
     if !is_port_available(port) {
-        println!("WARNING: Port {} still in use after force kill", port);
+        warn!("Port {} still in use after force kill", port);
         // Try one more time
         force_kill(port);
     }
     
     // Start new processes
-    println!("Starting new processes...");
+    info!("Restarting...");
     *children = command::execute(commands, env);
 }

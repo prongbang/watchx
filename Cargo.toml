@@ -8,3 +8,8 @@ notify = "7.0.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 clap = { version = "4.4", features = ["derive"] }
+glob = "0.3"
+log = "0.4"
+env_logger = "0.10"
+colored = "2.1"
+chrono = "0.4"
