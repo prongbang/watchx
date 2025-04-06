@@ -36,7 +36,7 @@ build_windows:
 	make zip_windows version=$(VERSION)
 
 zip_windows:
-	cd $HOME/.cargo-target/x86_64-pc-windows-gnu/release && \
+	cd ~/.cargo-target/x86_64-pc-windows-gnu/release && \
 	zip $(VERSION)_Windows_x86_64.zip $(BINARY_NAME).exe && \
 	cd ../../../
 
@@ -46,7 +46,7 @@ build_linux:
 	make zip_linux version=$(VERSION)
 
 zip_linux:
-	cd $HOME/.cargo-target/x86_64-unknown-linux-gnu/release && \
+	cd ~/.cargo-target/x86_64-unknown-linux-gnu/release && \
 	tar -zcvf $(VERSION)_Linux_x86_64.tar.gz $(BINARY_NAME) && \
 	cd ../../../
 
@@ -58,12 +58,12 @@ build_macos:
 	make zip_macos_arm64 version=$(VERSION)
 
 zip_macos_x86_64:
-	cd $HOME/.cargo-target/x86_64-apple-darwin/release && \
+	cd ~/.cargo-target/x86_64-apple-darwin/release && \
 	tar -zcvf $(VERSION)_Darwin_x86_64.tar.gz $(BINARY_NAME) && \
 	cd ../../../
 
 zip_macos_arm64:
-	cd $HOME/.cargo-target/aarch64-apple-darwin/release && \
+	cd ~/.cargo-target/aarch64-apple-darwin/release && \
 	tar -zcvf $(VERSION)_Darwin_arm64.tar.gz $(BINARY_NAME) && \
 	cd ../../../
 
@@ -89,8 +89,8 @@ install:
 
 clean:
 	cargo clean
-	rm -f $HOME/.cargo-target/**/*.zip
-	rm -f $HOME/.cargo-target/**/*.tar.gz
+	rm -f ~/.cargo-target/**/*.zip
+	rm -f ~/.cargo-target/**/*.tar.gz
 
 .PHONY: toolchain toolchain_macos build_windows build_linux build_macos \
         zip_windows zip_linux zip_macos_x86_64 zip_macos_arm64 \
