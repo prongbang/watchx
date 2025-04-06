@@ -5,6 +5,7 @@ use std::path::Path;
 use std::thread;
 use glob::Pattern;
 use log::{info, warn, error};
+use std::env;
 
 use crate::{command, config, processes};
 
@@ -20,6 +21,60 @@ pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool
         }
     }
     false
+}
+
+fn get_file_icon(path: &Path) -> &'static str {
+    let extension = path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("");
+    
+    match extension {
+        "rs" => "🦀",  // Rust
+        "js" | "jsx" | "ts" | "tsx" => "📜",  // JavaScript/TypeScript
+        "py" => "🐍",  // Python
+        "go" => "🐹",  // Go
+        "java" => "☕",  // Java
+        "c" | "cpp" | "h" | "hpp" => "⚡",  // C/C++
+        "html" | "htm" => "🌐",  // HTML
+        "css" | "scss" | "sass" => "🎨",  // CSS
+        "json" => "📋",  // JSON
+        "md" => "📝",  // Markdown
+        "yml" | "yaml" => "⚙️",  // YAML
+        "toml" => "📦",  // TOML
+        "sh" | "bash" => "🐚",  // Shell
+        "sql" => "💾",  // SQL
+        "git" | "gitignore" => "🔧",  // Git
+        "lock" => "🔒",  // Lock files
+        "log" => "📊",  // Log files
+        "txt" => "📄",  // Text files
+        "pdf" => "📕",  // PDF
+        "jpg" | "jpeg" | "png" | "gif" | "svg" => "🖼️",  // Images
+        "mp4" | "mov" | "avi" => "🎥",  // Videos
+        "mp3" | "wav" | "ogg" => "🎵",  // Audio
+        "zip" | "tar" | "gz" => "📦",  // Archives
+        _ => "📄",  // Default
+    }
+}
+
+fn make_clickable(path: &Path) -> String {
+    let path_str = path.to_str().unwrap_or("");
+    let canonical_path = path.canonicalize().unwrap_or(path.to_path_buf());
+    let current_dir = env::current_dir().unwrap_or_default();
+    
+    // Get relative path from current directory
+    let relative_path = path.strip_prefix(&current_dir)
+        .unwrap_or(path)
+        .to_str()
+        .unwrap_or(path_str);
+    
+    let icon = get_file_icon(path);
+    
+    format!("\x1b]8;;file://{}\x1b\\{} {}/{}\x1b]8;;\x1b\\", 
+        canonical_path.display(), 
+        icon,
+        current_dir.file_name().unwrap_or_default().to_str().unwrap_or("."),
+        relative_path
+    )
 }
 
 pub fn run(config_path: &str) -> Result<()> {
@@ -69,14 +124,17 @@ pub fn run(config_path: &str) -> Result<()> {
 
     let mut last_warn_time = Instant::now();
 
-    for res in rx {
-        match res {
-            Ok(event) => {
-                if event
-                    .paths
-                    .iter()
-                    .any(|path| should_ignore(path, &config.ignore))
-                {
+    // Use a timeout for the receiver to prevent blocking indefinitely
+    let timeout = Duration::from_millis(100);
+    
+    loop {
+        // Use a timeout to prevent blocking indefinitely
+        match rx.recv_timeout(timeout) {
+            Ok(Ok(event)) => {
+                // Check if any non-ignored files have changed
+                let has_non_ignored_changes = event.paths.iter().any(|path| !should_ignore(path, &config.ignore));
+                
+                if !has_non_ignored_changes {
                     continue;
                 }
 
@@ -87,7 +145,9 @@ pub fn run(config_path: &str) -> Result<()> {
                 if !*is_restarting_flag && now.duration_since(*last_changed_time) > debounce_time {
                     info!("Changed:");
                     for path in &event.paths {
-                        info!("  {}", path.display());
+                        if !should_ignore(path, &config.ignore) {
+                            info!("  {}", make_clickable(path));
+                        }
                     }
                     *is_restarting_flag = true;
                     *last_changed_time = now;
@@ -99,7 +159,18 @@ pub fn run(config_path: &str) -> Result<()> {
                     last_warn_time = now;
                 }
             }
-            Err(e) => error!("Error: {:?}", e),
+            Ok(Err(e)) => {
+                error!("Watch error: {:?}", e);
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                // Timeout occurred, continue the loop
+                continue;
+            }
+            Err(e) => {
+                error!("Channel error: {:?}", e);
+                // If the channel is closed, exit the loop
+                break;
+            }
         }
     }
 
