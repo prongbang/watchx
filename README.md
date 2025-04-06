@@ -35,6 +35,14 @@ watchx run -c custom.yaml
 
 # Install
 
+### Install with Homebrew
+
+```shell
+brew update
+brew tap prongbang/homebrew-formulae
+brew install watchx
+```
+
 ### Install with Rust
 
 ```shell
