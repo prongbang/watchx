@@ -710,6 +710,7 @@ dependencies = [
  "glob",
  "log",
  "notify",
+ "regex",
  "serde",
  "serde_yaml",
 ]

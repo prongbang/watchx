@@ -11,29 +11,85 @@ use crate::{command, config, processes};
 
 pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool {
     if let Some(patterns) = ignore_patterns {
+        // Convert path to string for pattern matching
         let path_str = path.to_str().unwrap_or("");
+        let is_dir = path.is_dir();
         
-        // Check if the path itself matches any pattern
-        for pattern in patterns {
-            if let Ok(glob_pattern) = Pattern::new(pattern) {
-                if glob_pattern.matches(path_str) {
+        // First check if the file ends with a tilde (~) - common backup files
+        if let Some(file_name) = path.file_name() {
+            if let Some(file_str) = file_name.to_str() {
+                if file_str.ends_with('~') {
                     return true;
                 }
             }
         }
-        
-        // Check if any parent directory matches any pattern
-        if let Some(parent) = path.parent() {
-            let parent_str = parent.to_str().unwrap_or("");
-            for pattern in patterns {
+
+        // Check if the path itself matches any pattern
+        for pattern in patterns {
+            // Check if pattern is a regex (enclosed in /)
+            if pattern.ends_with('/') && pattern.len() > 2 {
+                // Extract the regex pattern without the slashes
+                let regex_pattern = &pattern[1..pattern.len() - 1];
+                
+                // Try to compile the regex
+                if let Ok(regex) = regex::Regex::new(regex_pattern) {
+                    // Check if the path matches the regex
+                    if regex.is_match(path_str) {
+                        return true;
+                    }
+                    
+                    // For directories with trailing slash convention
+                    if is_dir && regex.is_match(&format!("{}/", path_str)) {
+                        return true;
+                    }
+                }
+            } else {
+                // Handle as a glob pattern
                 if let Ok(glob_pattern) = Pattern::new(pattern) {
-                    if glob_pattern.matches(parent_str) {
+                    if glob_pattern.matches(path_str) {
+                        return true;
+                    }
+                    
+                    // For directories, check with trailing slash if pattern ends with slash
+                    if is_dir && pattern.ends_with('/') && glob_pattern.matches(&format!("{}/", path_str)) {
                         return true;
                     }
                 }
             }
         }
+        
+        // Check all parent directories recursively
+        let mut current = path;
+        while let Some(parent) = current.parent() {
+            if parent.as_os_str().is_empty() {
+                break; // Reached root
+            }
+            
+            let parent_str = parent.to_str().unwrap_or("");
+            
+            for pattern in patterns {
+                if pattern.starts_with('/') && pattern.ends_with('/') && pattern.len() > 2 {
+                    // Regex pattern
+                    let regex_pattern = &pattern[1..pattern.len() - 1];
+                    if let Ok(regex) = regex::Regex::new(regex_pattern) {
+                        if regex.is_match(parent_str) {
+                            return true;
+                        }
+                    }
+                } else {
+                    // Glob pattern
+                    if let Ok(glob_pattern) = Pattern::new(pattern) {
+                        if glob_pattern.matches(parent_str) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            
+            current = parent;
+        }
     }
+    
     false
 }
 
