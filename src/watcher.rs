@@ -12,10 +12,24 @@ use crate::{command, config, processes};
 pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool {
     if let Some(patterns) = ignore_patterns {
         let path_str = path.to_str().unwrap_or("");
+        
+        // Check if the path itself matches any pattern
         for pattern in patterns {
             if let Ok(glob_pattern) = Pattern::new(pattern) {
                 if glob_pattern.matches(path_str) {
                     return true;
+                }
+            }
+        }
+        
+        // Check if any parent directory matches any pattern
+        if let Some(parent) = path.parent() {
+            let parent_str = parent.to_str().unwrap_or("");
+            for pattern in patterns {
+                if let Ok(glob_pattern) = Pattern::new(pattern) {
+                    if glob_pattern.matches(parent_str) {
+                        return true;
+                    }
                 }
             }
         }
