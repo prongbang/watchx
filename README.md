@@ -8,15 +8,20 @@ Lightweight Live Reload Tool for Running Anything.
 
 ```yaml
 env:
-  PORT: "8080"
+  PORT: "9001"
 commands:
-  - "go run main.go"
+  - "make swaggen"
+  - "go run cmd/api/main.go"
 watch_dir: "./"
 ignore:
-  - ".git"
-  - "target"
-  - "node_modules"
+  - ".git/"
+  - "target/"
+  - "docs/"
+  - "node_modules/"
   - "*.log"
+  - "*_test.go"
+  - "*.json"
+  - "*.yaml"
 ```
 
 ## Run
