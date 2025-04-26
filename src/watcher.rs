@@ -27,7 +27,7 @@ pub fn should_ignore(path: &Path, ignore_patterns: &Option<Vec<String>>) -> bool
         // Check if the path itself matches any pattern
         for pattern in patterns {
             // Check if pattern is a regex (enclosed in /)
-            if pattern.ends_with('/') && pattern.len() > 2 {
+            if pattern.starts_with('/') && pattern.ends_with('/') && pattern.len() > 2 {
                 // Extract the regex pattern without the slashes
                 let regex_pattern = &pattern[1..pattern.len() - 1];
                 
@@ -314,4 +314,68 @@ pub fn run(config_path: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_should_ignore_tilde_files() {
+        let path = PathBuf::from("test.txt~");
+        assert!(should_ignore(&path, &Some(vec![])));
+    }
+
+    #[test]
+    fn test_should_ignore_glob_patterns() {
+        let patterns = Some(vec![
+            String::from("*.log"),
+            String::from("**/target/**"),
+            String::from("**/node_modules/**"),
+        ]);
+
+        // Test file patterns
+        assert!(should_ignore(&PathBuf::from("test/test.log"), &patterns));
+        assert!(should_ignore(&PathBuf::from("/target/test.go"), &patterns));
+        assert!(should_ignore(&PathBuf::from("test/target/test.go"), &patterns));
+        assert!(should_ignore(&PathBuf::from("test/target/sub/test.go"), &patterns));
+        assert!(should_ignore(&PathBuf::from("/node_modules/test.go"), &patterns));
+        assert!(should_ignore(&PathBuf::from("test/node_modules/test.go"), &patterns));
+        assert!(should_ignore(&PathBuf::from("test/node_modules/sub/test.go"), &patterns));
+        assert!(!should_ignore(&PathBuf::from("test/test.txt"), &patterns));
+        assert!(!should_ignore(&PathBuf::from("test/test.go"), &patterns));
+    }
+
+    #[test]
+    fn test_should_ignore_regex_patterns() {
+        let patterns = Some(vec![
+            String::from("/^test_.*\\.rs$/"),
+            String::from("/.*_test\\.go$/"),
+            String::from("/\\.git/"),
+        ]);
+
+        // Test file patterns
+        assert!(should_ignore(&PathBuf::from("test_watcher.rs"), &patterns));
+        assert!(should_ignore(&PathBuf::from("watcher_test.go"), &patterns));
+        assert!(!should_ignore(&PathBuf::from("watcher.rs"), &patterns));
+
+        // Test directory patterns
+        assert!(should_ignore(&PathBuf::from(".git"), &patterns));
+        assert!(!should_ignore(&PathBuf::from("src"), &patterns));
+    }
+
+    #[test]
+    fn test_should_ignore_parent_directories() {
+        let patterns = Some(vec![
+            String::from("node_modules/"),
+            String::from("/\\.git/"),
+        ]);
+
+        // Test nested files in ignored directories
+        assert!(should_ignore(&PathBuf::from("node_modules/package.json"), &patterns));
+        assert!(should_ignore(&PathBuf::from(".git/config"), &patterns));
+        assert!(!should_ignore(&PathBuf::from("src/main.rs"), &patterns));
+    }
 }
