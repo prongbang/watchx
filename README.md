@@ -154,3 +154,9 @@ ignore:
   - "/**/*_test.go"
   - "/**/*.spec.js"
  ```
+
+## IDE
+
+### Thank you [RustRover](https://www.jetbrains.com/rust/)
+
+![RustRover](https://resources.jetbrains.com/help/img/idea/2024.3/RustRover_icon.svg)
