@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use log::{info, warn};
 use std::collections::HashMap;
 use std::process::{Child, Command};
 
@@ -25,15 +26,19 @@ pub fn execute(commands: &[String], env: &HashMap<String, String>) -> Vec<Child>
 
     for command in commands {
         let parts: Vec<&str> = command.split_whitespace().collect();
-        let (cmd, args) = parts.split_first().expect("Invalid command");
-
-        let child = Command::new(cmd)
-            .args(args)
-            .envs(env.clone())
-            .spawn()
-            .expect("Failed to execute command");
-
-        children.push(child);
+        if let Some((program, args)) = parts.split_first() {
+            match Command::new(program).args(args).envs(env.clone()).spawn() {
+                Ok(child) => {
+                    info!("Started process {} (PID: {})", program, child.id());
+                    children.push(child);
+                }
+                Err(e) => {
+                    warn!("Failed to start process {}: {}", program, e);
+                }
+            }
+        } else {
+            warn!("Invalid command: {}", command);
+        }
     }
 
     children
