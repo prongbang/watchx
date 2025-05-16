@@ -18,7 +18,7 @@
 # make clean
 
 # Cross-platform build configuration
-VERSION ?= 0.2.3
+VERSION ?= 0.3.0
 BINARY_NAME = watchx
 
 # Toolchain targets
