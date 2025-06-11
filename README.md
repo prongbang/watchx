@@ -97,26 +97,6 @@ ignore:
   - "**/.git/**"
 ```
 
-### Advanced Options
-
-```yaml
-# Multiple commands with custom options
-commands:
-  - command: "npm run dev"
-    cwd: "./frontend"
-  - command: "cargo run"
-    cwd: "./backend"
-
-# Watch multiple directories
-watch_dirs:
-  - "./src"
-  - "./config"
-  - "./tests"
-
-# Debounce time in milliseconds
-debounce: 300
-```
-
 ## 🔍 Ignore Patterns
 
 watchx supports two types of patterns: **glob patterns** and **regex patterns**.
