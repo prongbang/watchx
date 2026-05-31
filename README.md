@@ -21,6 +21,12 @@
 
 1. Create a `watchx.yaml` file in your project:
 
+```shell
+watchx init
+```
+
+This creates the default config:
+
 ```yaml
 env:
   PORT: "8080"
@@ -196,6 +202,15 @@ ignore:
 # Run with default config
 watchx run
 
+# Initialize default config
+watchx init
+
+# Initialize custom config
+watchx init -c custom.yaml
+
+# Overwrite an existing config
+watchx init -f
+
 # Run with custom config
 watchx run -c custom.yaml
 
@@ -211,6 +226,7 @@ watchx --help
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--config` | `-c` | Specify custom config file |
+| `--force` | `-f` | Overwrite an existing config file when using `init` |
 | `--verbose` | `-v` | Enable verbose output |
 | `--watch` | `-w` | Override watch directory |
 | `--help` | `-h` | Show help information |

@@ -1,13 +1,14 @@
 use clap::Parser;
-use notify::Result;
-use env_logger::Builder;
-use log::{LevelFilter, Level};
 use colored::*;
+use env_logger::Builder;
+use log::{Level, LevelFilter};
+use notify::Result;
 
 mod command;
 mod config;
-mod watcher;
+mod icon;
 mod processes;
+mod watcher;
 
 fn main() -> Result<()> {
     // Initialize logger with custom format and colors
@@ -30,19 +31,24 @@ fn main() -> Result<()> {
             } else {
                 message.normal()
             };
-            writeln!(
-                buf,
-                "{} {} {}",
-                timestamp.dimmed(),
-                level,
-                message
-            )
+            writeln!(buf, "{} {} {}", timestamp.dimmed(), level, message)
         })
         .init();
 
     let cli = command::Cli::parse();
 
     match cli.command {
+        command::Commands::Init {
+            config: config_path,
+            force,
+        } => {
+            if let Err(e) = config::init_config(&config_path, force) {
+                log::error!("Failed to initialize configuration file: {}", e);
+                std::process::exit(1);
+            }
+
+            log::info!("Created config: {}", config_path);
+        }
         command::Commands::Run { config } => watcher::run(&config)?,
     }
 

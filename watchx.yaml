@@ -4,7 +4,8 @@ commands:
   - "go run main.go"
 watch_dir: "./"
 ignore:
+  - "**/.git/**"
+  - "**/target/**"
   - "**/node_modules/**"
-  - "/.git/"
-  - "*.tmp"
   - "*.log"
+  - "*.tmp"

@@ -8,7 +8,9 @@ edition = "2021"
 lto = true
 # Enable Compiler Optimizations
 opt-level = 3
-codegen-units = 16
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
 
 [dependencies]
 notify = "8.0.0"
