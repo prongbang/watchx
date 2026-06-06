@@ -54,9 +54,7 @@ That's it! Your application will now automatically reload on file changes.
 ### Via Homebrew (macOS & Linux)
 
 ```shell
-brew update
-brew tap prongbang/homebrew-formulae
-brew install watchx
+brew install prongbang/homebrew-formulae/watchx
 ```
 
 ### Via Cargo

@@ -1,0 +1,204 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.3.2. Defaults to Cargo.toml version."
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: watchx
+  HOMEBREW_TAP_REPOSITORY: prongbang/homebrew-formulae
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x86_64
+            os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+            archive: zip
+            asset_suffix: Windows_x86_64
+            binary_ext: .exe
+          - label: Linux x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            asset_suffix: Linux_x86_64
+            binary_ext: ""
+          - label: macOS x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            asset_suffix: Darwin_x86_64
+            binary_ext: ""
+          - label: macOS arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            asset_suffix: Darwin_arm64
+            binary_ext: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Windows cross-compiler
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64 zip
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          fi
+
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+          echo "ASSET_NAME=${VERSION}_${{ matrix.asset_suffix }}" >> "${GITHUB_ENV}"
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build release binary
+        run: cargo build --locked --release --target ${{ matrix.target }}
+
+      - name: Package Windows artifact
+        if: matrix.archive == 'zip'
+        shell: bash
+        run: |
+          ARTIFACT="${ASSET_NAME}.zip"
+          zip -j "${ARTIFACT}" "target/${{ matrix.target }}/release/${BINARY_NAME}${{ matrix.binary_ext }}"
+          echo "ARTIFACT=${ARTIFACT}" >> "${GITHUB_ENV}"
+
+      - name: Package Unix artifact
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          ARTIFACT="${ASSET_NAME}.tar.gz"
+          tar -czf "${ARTIFACT}" -C "target/${{ matrix.target }}/release" "${BINARY_NAME}${{ matrix.binary_ext }}"
+          echo "ARTIFACT=${ARTIFACT}" >> "${GITHUB_ENV}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSET_NAME }}
+          path: ${{ env.ARTIFACT }}
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate Homebrew formula
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+
+          DARWIN_ARM_SHA="$(sha256sum "dist/${VERSION}_Darwin_arm64.tar.gz" | awk '{print $1}')"
+          DARWIN_X86_SHA="$(sha256sum "dist/${VERSION}_Darwin_x86_64.tar.gz" | awk '{print $1}')"
+          LINUX_X86_SHA="$(sha256sum "dist/${VERSION}_Linux_x86_64.tar.gz" | awk '{print $1}')"
+
+          mkdir -p homebrew-formula
+          cat > homebrew-formula/watchx.rb <<EOF
+          class Watchx < Formula
+            desc "Lightweight live reload tool for running anything"
+            homepage "https://github.com/${GITHUB_REPOSITORY}"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${RELEASE_URL}/${VERSION}_Darwin_arm64.tar.gz"
+                sha256 "${DARWIN_ARM_SHA}"
+              else
+                url "${RELEASE_URL}/${VERSION}_Darwin_x86_64.tar.gz"
+                sha256 "${DARWIN_X86_SHA}"
+              end
+            end
+
+            on_linux do
+              url "${RELEASE_URL}/${VERSION}_Linux_x86_64.tar.gz"
+              sha256 "${LINUX_X86_SHA}"
+            end
+
+            def install
+              bin.install "watchx"
+            end
+
+            test do
+              assert_match "watchx", shell_output("#{bin}/watchx --help")
+            end
+          end
+          EOF
+
+          sed -i 's/^          //' homebrew-formula/watchx.rb
+          cp homebrew-formula/watchx.rb dist/watchx.rb
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+
+      - name: Checkout Homebrew tap
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HOMEBREW_TAP_REPOSITORY }}
+          token: ${{ env.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update Homebrew formula
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        shell: bash
+        run: |
+          mkdir -p homebrew-tap/Formula
+          cp homebrew-formula/watchx.rb homebrew-tap/Formula/watchx.rb
+
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/watchx.rb
+
+          if git diff --cached --quiet; then
+            echo "Homebrew formula is already up to date."
+            exit 0
+          fi
+
+          git commit -m "Update watchx to ${GITHUB_REF_NAME#v}"
+          git push
