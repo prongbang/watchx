@@ -101,6 +101,8 @@ ignore:
   - "**/.git/**"
 ```
 
+Each command is started as an executable plus whitespace-separated arguments. Shell syntax such as pipes, redirects, inline environment assignments, and quoted arguments with spaces are not interpreted; put environment variables in `env`.
+
 ## 🔍 Ignore Patterns
 
 watchx supports two types of patterns: **glob patterns** and **regex patterns**.
@@ -139,12 +141,12 @@ Complex patterns enclosed in forward slashes:
 ```yaml
 ignore:
   # File patterns
-  - "/^test_.*\\.rs$/"   # Files starting with test_ and ending with .rs
-  - "/.*_test\\.go$/"    # Files ending with _test.go
+  - "/(^|/)test_.*\\.rs$/" # Files starting with test_ and ending with .rs
+  - "/(^|/).*_test\\.go$/" # Files ending with _test.go
   
   # Directories
   - "/\\.git/"           # .git directory
-  - "/build-\\d+/"      # build-{number} directories
+  - "/build-\\d+/"       # build-{number} directories
   
   # Complex patterns
   - "/\\.(jpg|jpeg|png)$/" # Image files
@@ -165,7 +167,7 @@ ignore:
   
   # Version control
   - "/\\.git/"
-  - "/.svn/"
+  - "/\\.svn/"
   
   # Build artifacts
   - "*.o"
@@ -183,13 +185,13 @@ ignore:
   - "*.sqlite"
   
   # IDE files
-  - "/.idea/"
-  - "/.vscode/"
+  - "/\\.idea/"
+  - "/\\.vscode/"
   
   # Test files
   - "/test_.*/"
-  - "/**/*_test.go"
-  - "/**/*.spec.js"
+  - "**/*_test.go"
+  - "**/*.spec.js"
 ```
 
 ## 💻 Command Line Usage
@@ -212,22 +214,22 @@ watchx init -f
 # Run with custom config
 watchx run -c custom.yaml
 
-# Run in verbose mode
-watchx run -v
-
 # Show help
 watchx --help
+
+# Show version
+watchx --version
 ```
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--config` | `-c` | Specify custom config file |
-| `--force` | `-f` | Overwrite an existing config file when using `init` |
-| `--verbose` | `-v` | Enable verbose output |
-| `--watch` | `-w` | Override watch directory |
-| `--help` | `-h` | Show help information |
+| Command | Option | Short | Description |
+|---------|--------|-------|-------------|
+| `watchx init` | `--config <CONFIG>` | `-c` | Write the config file at a custom path |
+| `watchx init` | `--force` | `-f` | Overwrite an existing config file |
+| `watchx run` | `--config <CONFIG>` | `-c` | Read the config file from a custom path |
+| all commands | `--help` | `-h` | Show help information |
+| `watchx` | `--version` | `-V` | Show version information |
 
 ## 🔧 Use Cases
 
